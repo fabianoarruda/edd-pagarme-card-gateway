@@ -14,11 +14,11 @@ Contributors:
 require("pagarme-php/Pagarme.php");
 
 // registers the gateway
-function pw_edd_register_gateway( $gateways ) {
-	$gateways['pagarme_card_gateway'] = array( 'admin_label' => 'Pagar.me Gateway (Cartão)', 'checkout_label' => __( 'Cartão de Crédito', 'pw_edd' ) );
+function register_gateway( $gateways ) {
+	$gateways['pagarme_card_gateway'] = array( 'admin_label' => 'Pagar.me Gateway (Cartão)', 'checkout_label' => 'Cartão de Crédito' );
 	return $gateways;
 }
-add_filter( 'edd_payment_gateways', 'pw_edd_register_gateway' );
+add_filter( 'edd_payment_gateways', 'register_gateway' );
 
 
 // Remove this if you want a credit card form
@@ -26,7 +26,7 @@ add_filter( 'edd_payment_gateways', 'pw_edd_register_gateway' );
 
 
 // processes the payment
-function pw_edd_process_payment( $purchase_data ) {
+function process_payment( $purchase_data ) {
 
 	global $edd_options;
 
@@ -109,7 +109,7 @@ function pw_edd_process_payment( $purchase_data ) {
 		* and verify payment with an IPN
 		**********************************/
 
-		//die(print_r($purchase_data['cart_details'], true ));
+		//die(print_r($_POST, true ));
 
 		$customer = array(
 			"email" => $purchase_data['user_info']['email'],
@@ -134,18 +134,28 @@ function pw_edd_process_payment( $purchase_data ) {
 				"metadata" => $metadata
 		));
 
-		$transaction->charge();
+		try{
 
-		if($transaction->getStatus() == 'paid') {
-			//Transação foi aprovada
+				$transaction->charge();
 
-			// if the merchant payment is complete, set a flag
-			$merchant_payment_confirmed = true;
+				if($transaction->getStatus() == 'paid') {
+					//Transação foi aprovada
 
-		} else if($transaction->getStatus() == 'refused') {
-			//Transação foi recusada
-			// $transaction->getRefuseReason() - mostra por que a transação foi recusada
+					// if the merchant payment is complete, set a flag
+					$merchant_payment_confirmed = true;
+
+				} else if($transaction->getStatus() == 'refused') {
+					//Transação foi recusada
+					// $transaction->getRefuseReason() - mostra por que a transação foi recusada
+				}
+		} catch(PagarMe_Exception $e) {
+				
+				$err_msg = $e->getMessage(); // Retorna todos os erros concatendaos.
+				edd_set_error( 0, __( 'Não foi possível processar transação. ' . $err_msg, 'edd-pagarme-card-gateway' ) );
+				edd_send_back_to_checkout( '?payment-mode=' . $purchase_data['post_data']['edd-gateway'] );
 		}
+
+
 
 
 
@@ -176,7 +186,7 @@ function pw_edd_process_payment( $purchase_data ) {
 		edd_send_back_to_checkout( '?payment-mode=' . $purchase_data['post_data']['edd-gateway'] );
 	}
 }
-add_action( 'edd_gateway_pagarme_gateway', 'pw_edd_process_payment' );
+add_action( 'edd_gateway_pagarme_card_gateway', 'process_payment' );
 
 
 // adds the settings to the Payment Gateways section
@@ -184,7 +194,7 @@ function pw_edd_add_settings( $settings ) {
 
 	$sample_gateway_settings = array(
 		array(
-			'id' => 'pagarme_gateway_settings',
+			'id' => 'pagarme_card_gateway_settings',
 			'name' => '<strong>' . __( 'Configurções Pagar.me (Cartão)', 'pw_edd' ) . '</strong>',
 			'desc' => __( 'Configurações do Gateway do Pagar.me', 'pw_edd' ),
 			'type' => 'header'

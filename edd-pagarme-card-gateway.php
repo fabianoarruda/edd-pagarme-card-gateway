@@ -11,6 +11,7 @@ Contributors:
 
 // Don't forget to load the text domain here. Sample text domain is pw_edd
 
+if(!class_exists('PagarMe'))
 require("pagarme-php/Pagarme.php");
 
 // registers the gateway
@@ -146,10 +147,13 @@ function process_payment( $purchase_data ) {
 
 				} else if($transaction->getStatus() == 'refused') {
 					//Transação foi recusada
-					// $transaction->getRefuseReason() - mostra por que a transação foi recusada
+					$refuse_reason = $transaction->getRefuseReason(); // - mostra por que a transação foi recusada
+					edd_set_error( 0, __( 'A Transação foi recusada. ' . $refuse_reason, 'edd-pagarme-card-gateway' ) );
+					edd_send_back_to_checkout( '?payment-mode=' . $purchase_data['post_data']['edd-gateway'] );
+
 				}
 		} catch(PagarMe_Exception $e) {
-				
+
 				$err_msg = $e->getMessage(); // Retorna todos os erros concatendaos.
 				edd_set_error( 0, __( 'Não foi possível processar transação. ' . $err_msg, 'edd-pagarme-card-gateway' ) );
 				edd_send_back_to_checkout( '?payment-mode=' . $purchase_data['post_data']['edd-gateway'] );
